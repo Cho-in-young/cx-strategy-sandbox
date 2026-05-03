@@ -103,7 +103,7 @@ if not filtered_df.empty:
         prev_df = prev_df[prev_df[banner] == filtered_df[banner].iloc[0]]
 
     def calc_metrics(data_df):
-        if data_df.empty: return {"frt": None, "fcr": None, "csat": None, "nps": None, "ltv": None}
+        if data_df.empty: return {"frt": None, "fcr": None, "csat": None, "nps": None, "ltv": None, "churn": None}
         dt_resp = pd.to_datetime(data_df['first_response_at'], format='mixed', errors='coerce')
         dt_crea = pd.to_datetime(data_df['created_at'], format='mixed', errors='coerce')
         frt = (dt_resp - dt_crea).dt.total_seconds().mean() / 60
