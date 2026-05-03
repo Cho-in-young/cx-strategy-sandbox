@@ -184,7 +184,7 @@ c1, c2 = st.columns(2)
 with c1: user_analysis = st.text_area("1. 데이터 분석", height=150)
 with c2: user_action = st.text_area("2. 실행 액션", height=150)
 
-if st.button("🚀 3. 전략 실행 및 차주 데이터 생성)"):
+if st.button("🚀 3. 전략 실행 및 차주 데이터 생성"):
     if user_analysis and user_action:
         with st.spinner("AI가 20건의 시뮬레이션 데이터를 생성 중입니다... (약 15~20초)"):
             feedback = get_ai_feedback(user_analysis, f"Week {st.session_state.current_sim_week}", user_action, filtered_df.to_string())
