@@ -31,6 +31,7 @@ with st.sidebar:
     with st.expander("😊 CSAT (Top-2 % 기준)"): st.write("4, 5점 긍정 응답 비율. 단기적 서비스 만족도 표준입니다.")
     with st.expander("📣 NPS (Net Promoter Score)"): st.write("추천자(9-10) % - 비추천자(0-6) %. 브랜드 충성도 지표입니다.")
     with st.expander("💎 LTV (Lifetime Value)"): st.write("유저별 누적 매출액. 고객의 비즈니스적 가치를 나타냅니다.")
+    with st.expander("🏃 Churn (이탈률)"): st.write("활성 상태(is_active)가 FALSE인 고객의 비율. 서비스 이탈 및 구독 해지를 나타냅니다.")
 
     st.divider()
     
@@ -94,8 +95,8 @@ if not filtered_df.empty:
     
     st.divider()
     st.subheader("📊 핵심 KPI (전주 대비 증감)")
-    kpis = ["FRT (분)", "FCR (%)", "CSAT (Top-2 %)", "NPS Score", "LTV (평균)"]
-    selected = st.multiselect("분석 지표 선택", kpis, default=["CSAT (Top-2 %)", "NPS Score", "LTV (평균)"])
+    kpis = ["FRT (분)", "FCR (%)", "CSAT (Top-2 %)", "NPS Score", "LTV (평균)", "Churn (%)"]
+    selected = st.multiselect("분석 지표 선택", kpis, default=["CSAT (Top-2 %)", "NPS Score", "Churn (%)"])
     
     prev_df = df[df['week'] == (st.session_state.current_sim_week - 1)] if st.session_state.current_sim_week > 1 else pd.DataFrame()
     if banner != "Total" and not prev_df.empty:
@@ -110,7 +111,8 @@ if not filtered_df.empty:
         csat = (len(data_df[data_df['csat_score'] >= 4]) / len(data_df)) * 100
         nps = ((len(data_df[data_df['nps_score'] >= 9]) - len(data_df[data_df['nps_score'] <= 6])) / len(data_df)) * 100
         ltv = data_df['total_purchase_amount'].mean()
-        return {"frt": frt, "fcr": fcr, "csat": csat, "nps": nps, "ltv": ltv}
+        churn = (data_df['is_active'].astype(str).str.upper() == 'FALSE').sum() / len(data_df) * 100
+        return {"frt": frt, "fcr": fcr, "csat": csat, "nps": nps, "ltv": ltv, "churn": churn}
 
     curr_metrics = calc_metrics(filtered_df)
     prev_metrics = calc_metrics(prev_df)
@@ -141,6 +143,10 @@ if not filtered_df.empty:
                     val = curr_metrics["ltv"]
                     delta = f"{val - prev_metrics['ltv']:,.0f}원" if prev_metrics['ltv'] is not None else None
                     st.metric("평균 LTV", f"{val:,.0f}원", delta=delta)
+                elif "Churn" in m:
+                    val = curr_metrics["churn"]
+                    delta = f"{val - prev_metrics['churn']:.1f}%" if prev_metrics['churn'] is not None else None
+                    st.metric("Churn (이탈률)", f"{val:.1f}%", delta=delta, delta_color="inverse")
 
     if "누적 데이터" in view_mode and st.session_state.current_sim_week > 1 and selected:
         st.divider()
@@ -152,7 +158,11 @@ if not filtered_df.empty:
             w_df = filtered_df[filtered_df['week'] == w]
             if not w_df.empty:
                 w_metrics = calc_metrics(w_df)
-                trend_data.append({'Week': f'W{w}', 'FRT': w_metrics['frt'], 'FCR': w_metrics['fcr'], 'CSAT': w_metrics['csat'], 'NPS': w_metrics['nps'], 'LTV': w_metrics['ltv']})
+                trend_data.append({
+                    'Week': f'W{w}', 'FRT': w_metrics['frt'], 'FCR': w_metrics['fcr'], 
+                    'CSAT': w_metrics['csat'], 'NPS': w_metrics['nps'], 
+                    'LTV': w_metrics['ltv'], 'Churn': w_metrics['churn']
+                })
         
         trend_df = pd.DataFrame(trend_data)
         chart_cols = st.columns(2)
@@ -173,6 +183,9 @@ if not filtered_df.empty:
                     st.plotly_chart(fig, use_container_width=True)
                 elif "LTV" in m:
                     fig = px.bar(trend_df, x='Week', y='LTV', title="평균 LTV 볼륨 (원)", color_discrete_sequence=['#9467BD'])
+                    st.plotly_chart(fig, use_container_width=True)
+                elif "Churn" in m:
+                    fig = px.line(trend_df, x='Week', y='Churn', title="Churn (이탈률) 트렌드 (%)", markers=True, color_discrete_sequence=['#D62728'])
                     st.plotly_chart(fig, use_container_width=True)
 
 else:
