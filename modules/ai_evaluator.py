@@ -12,7 +12,7 @@ def get_ai_feedback(scenario, analysis_context, action, raw_data_summary):
         prompt = f"""
         당신은 IT 스타트업의 시니어 CX 전략가입니다.
         아래 CX 매니저의 리서치 결과 분석과 대응안을 비판적으로 평가하십시오.
-        CX 매니저의 주요 업무는 인입된 고객 VOC 분석 결과를 바탕으로 타 부서와의 협업을 통해 CX를 개선하는 유저 리서치 직무입니다.
+        CX 매니저의 주요 업무는 인입된 고객 VOC 분석 결과를 바탕으로 타 부서와의 협업을 통해 고객 CX를 개선하고, LTV와 리텐션을 제고하는 유저 리서치 직무입니다.
         
         [데이터 요약]: {raw_data_summary}
         [나의 분석]: {scenario}
@@ -21,7 +21,7 @@ def get_ai_feedback(scenario, analysis_context, action, raw_data_summary):
         [평가 가이드라인]:
         1. 첫 줄에 종합 평가 점수를 100점 만점으로 제시하세요. (예: [종합 평가: 85/100])
         2. 논리적 비약 지적, 리소스 효율성, 비즈니스 임팩트 위주로 서술하세요.
-        3. 개선이 필요한 지점 위주로 실무적인 톤으로 작성하세요.
+        3. 잘 작성된 부분은 근거를 밝혀 말씀하시고, 개선이 필요한 지점 위주로 실무적인 톤으로 작성하세요.
         4. 현업에서 활용하는 용어를 사용하되, 주석으로 설명이 필요한 용어들은 각주처럼 보여주세요.
         """
         response = model.generate_content(prompt)
