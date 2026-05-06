@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import io
-from modules.ai_evaluator import get_ai_feedback, generate_next_week_data
+from modules.ai_evaluator import get_ai_feedback, generate_next_week_data, generate_next_background
 
 st.set_page_config(page_title="CX Strategy Sandbox", layout="wide")
 
@@ -23,6 +23,10 @@ if 'master_df' not in st.session_state:
 if 'current_sim_week' not in st.session_state: st.session_state.current_sim_week = 1
 if 'feedback_history' not in st.session_state: st.session_state.feedback_history = []
 if 'current_feedback' not in st.session_state: st.session_state.current_feedback = None
+if 'current_background' not in st.session_state:
+    st.session_state.current_background = "현재 다글로 서비스는 기본 음성 인식을 무료로 제공하는 프리미엄(Freemium) 모델을 운영 중입니다. 유입 트래픽은 꾸준히 증가하고 있으나, 유료 결제 전환율(F2P)은 2% 미만으로 정체되어 있습니다. 특히 최근 전문 용어 인식률과 관련된 무료 유저들의 기능 불만 문의가 급증하여 리텐션(Retention) 방어 및 수익화 전략이 시급한 상황입니다."
+if 'next_background' not in st.session_state:
+    st.session_state.next_background = None
 
 with st.sidebar:
     st.title("📚 CX 지표 사전")
@@ -88,6 +92,8 @@ with col_f2:
     else: filtered_df = base_df[base_df[banner] == st.selectbox(f"2단계 상세 {banner}", base_df[banner].unique().tolist())]
 
 if not filtered_df.empty:
+    with st.expander("🏢 이번 주차 서비스 배경 (Business Context)", expanded=True):
+        st.info(st.session_state.current_background)
     st.write(f"📊 분석 대상 데이터: **{len(filtered_df)}건**")
     
     with st.expander("👀 분석 대상 로데이터 확인", expanded=False):
@@ -202,7 +208,9 @@ if st.button("🚀 3. 전략 실행 및 차주 데이터 생성"):
         with st.spinner("AI가 20건의 시뮬레이션 데이터를 생성 중입니다... (약 15~20초)"):
             feedback = get_ai_feedback(user_analysis, f"Week {st.session_state.current_sim_week}", user_action, filtered_df.to_string())
             st.session_state.current_feedback = feedback
+            st.session_state.next_background = generate_next_background(user_action, feedback)
             
+            time.sleep(3)
             generated_csv = generate_next_week_data(filtered_df.to_string(), user_action, st.session_state.current_sim_week + 1)
             
             try:
@@ -224,6 +232,9 @@ if st.session_state.current_feedback: st.info(st.session_state.current_feedback)
 
 st.divider()
 if st.button("⏭️ 4. 다음 주차(Next Week) 대시보드로 이동"):
+    if st.session_state.next_background:
+        st.session_state.current_background = st.session_state.next_background
+        
     st.session_state.current_sim_week += 1
     st.session_state.current_feedback = None
     st.rerun()
