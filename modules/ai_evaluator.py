@@ -68,3 +68,27 @@ def generate_next_week_data(current_data_summary, user_action, next_week_num):
         return clean_text
     except Exception as e:
         return f"ticket_id,week,error,error,error,error,error,error,error,error,error,error,error,error\n0,{next_week_num},생성 중 오류 발생: {str(e)},,,,,,,,,,,"
+
+def generate_next_background(prev_action, prev_feedback):
+    import google.generativeai as genai
+    import os
+    import streamlit as st
+    
+    api_key = st.secrets["GEMINI_API_KEY"] if "GEMINI_API_KEY" in st.secrets else os.environ.get("GEMINI_API_KEY")
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-3-flash-preview')
+    
+    prompt = f"""
+    당신은 SaaS 기업의 그로스/CX 리드입니다.
+    지난 주차에 담당자가 다음 액션을 실행했습니다: {prev_action}
+    이에 대한 평가 결과는 다음과 같습니다: {prev_feedback}
+    
+    이 내용을 바탕으로, '다음 주차'에 직면하게 될 새로운 비즈니스 상황(서비스 배경)을 3~4문장으로 작성해주세요.
+    단순한 지표 변화뿐만 아니라, 실무 환경에서 일어날 법한 예상치 못한 변화(예: 특정 지표는 개선되었으나 개발팀 리소스 부족, 새로운 유형의 유저 불만 발생, 서버 트래픽 폭증 등)를 반드시 하나 이상 포함하여 생동감 있게 설정해주세요.
+    인사말 없이 배경 설명만 텍스트로 출력하세요.
+    """
+    try:
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        return f"지난 액션이 시스템에 반영되었습니다. 새로운 주차의 지표 변화를 확인하고 다음 전략을 수립하세요."
