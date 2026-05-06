@@ -24,7 +24,7 @@ if 'current_sim_week' not in st.session_state: st.session_state.current_sim_week
 if 'feedback_history' not in st.session_state: st.session_state.feedback_history = []
 if 'current_feedback' not in st.session_state: st.session_state.current_feedback = None
 if 'current_background' not in st.session_state:
-    st.session_state.current_background = "현재 다글로 서비스는 기본 음성 인식을 무료로 제공하는 프리미엄(Freemium) 모델을 운영 중입니다. 유입 트래픽은 꾸준히 증가하고 있으나, 유료 결제 전환율(F2P)은 2% 미만으로 정체되어 있습니다. 특히 최근 전문 용어 인식률과 관련된 무료 유저들의 기능 불만 문의가 급증하여 리텐션(Retention) 방어 및 수익화 전략이 시급한 상황입니다."
+    st.session_state.current_background = "현재 유입 트래픽은 꾸준히 증가하고 있으나, 유료 결제 전환율(F2P)은 2% 미만으로 정체되어 있습니다."
 if 'next_background' not in st.session_state:
     st.session_state.next_background = None
 
