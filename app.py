@@ -46,7 +46,7 @@ with st.sidebar:
     with st.expander("✅ FCR (First Contact Resolution)"): st.write("첫 상담에서 즉시 해결된 비율. 유저 피로도를 방어합니다.")
     with st.expander("😊 CSAT (Top-2 % 기준)"): st.write("4, 5점 긍정 응답 비율. 단기적 서비스 만족도 표준입니다.")
     with st.expander("📣 NPS (Net Promoter Score)"): st.write("추천자(9-10) % - 비추천자(0-6) %. 브랜드 충성도 지표입니다.")
-    with st.expander("💎 LTV (Lifetime Value)"): st.write("유저별 누적 매출액. 고객의 비즈니스적 가치를 나타냅니다.")
+    with st.expander("💎 LTV (Lifetime Value)"): st.write("유저별 평균 매출액 / 이탈율 * 그로스 마진. 고객의 비즈니스적 가치를 나타냅니다.")
     with st.expander("🏃 Churn (이탈률)"): st.write("활성 상태(is_active)가 FALSE인 고객의 비율. 서비스 이탈 및 구독 해지를 나타냅니다.")
 
     st.divider()
@@ -112,13 +112,11 @@ if not filtered_df.empty:
         st.dataframe(filtered_df, use_container_width=True)
     
     st.divider()
-    st.subheader("📈 [Global] 전체 고객 그로스 지표")
+    st.subheader("📈 전체 고객 그로스 지표")
     
-    # 현재 주차 및 전 주차의 거시 지표 가져오기
     curr_macro = next((m for m in st.session_state.macro_metrics_history if m["week"] == st.session_state.current_sim_week), st.session_state.macro_metrics_history[-1])
     prev_macro = next((m for m in st.session_state.macro_metrics_history if m["week"] == st.session_state.current_sim_week - 1), curr_macro)
 
-    # Global LTV 산출 (ARPU / Churn Rate * Gross Margin)
     def calc_global_ltv(macro_data):
         return (macro_data["arpu"] / max(macro_data["churn_rate"], 0.001)) * macro_data["gross_margin"]
 
@@ -126,10 +124,10 @@ if not filtered_df.empty:
     prev_global_ltv = calc_global_ltv(prev_macro)
 
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("가상 MAU", f"{curr_macro['mau']:,} 명", delta=f"{curr_macro['mau'] - prev_macro['mau']:,} 명")
+    m1.metric("주별 MAU", f"{curr_macro['mau']:,} 명", delta=f"{curr_macro['mau'] - prev_macro['mau']:,} 명")
     m2.metric("전체 이탈률 (Churn)", f"{curr_macro['churn_rate']*100:.1f}%", delta=f"{(curr_macro['churn_rate'] - prev_macro['churn_rate'])*100:.1f}%", delta_color="inverse")
-    m3.metric("CAC (고객 획득 비용)", f"{curr_macro['cac']:,} 원", delta=f"{curr_macro['cac'] - prev_macro['cac']:,} 원", delta_color="inverse")
-    m4.metric("Global LTV", f"{curr_global_ltv:,.0f} 원", delta=f"{curr_global_ltv - prev_global_ltv:,.0f} 원")
+    m3.metric("CAC", f"{curr_macro['cac']:,} 원", delta=f"{curr_macro['cac'] - prev_macro['cac']:,} 원", delta_color="inverse")
+    m4.metric("LTV", f"{curr_global_ltv:,.0f} 원", delta=f"{curr_global_ltv - prev_global_ltv:,.0f} 원")
 
     st.divider()
     st.subheader("🗣️ [VOC] 인입 고객 대상 서비스 지표 (Benchmark 비교)")
@@ -229,11 +227,11 @@ if st.button("🚀 3. 전략 실행 및 차주 데이터 생성"):
                 st.session_state.master_df = pd.concat([st.session_state.master_df, new_df], ignore_index=True)
                
                 last_macro = st.session_state.macro_metrics_history[-1]
-                # 새로 생성된 VOC의 CSAT을 바탕으로 액션의 성공 여부 측정 (기준점 50%)
+                
                 new_voc_csat = (len(new_df[new_df['csat_score'] >= 4]) / len(new_df)) * 100 if not new_df.empty else 50
                 impact_factor = (new_voc_csat - 50) / 100 
                 
-                # 액션 성과에 비례하여 MAU 증가, Churn 감소, CAC 변동 (상관관계 하드코딩)
+                
                 new_macro = {
                     "week": st.session_state.current_sim_week + 1,
                     "mau": int(last_macro["mau"] * (1 + (0.05 * impact_factor))), 
