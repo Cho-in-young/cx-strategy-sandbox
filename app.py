@@ -30,14 +30,16 @@ if 'next_background' not in st.session_state:
     st.session_state.next_background = None
 
 if 'macro_metrics_history' not in st.session_state:
-    # 1주차 가상 전체 고객 베이스라인 데이터
+    # 1주차 가상 전체 고객 베이스라인 데이터 (AARRR 퍼널)
     st.session_state.macro_metrics_history = [{
         "week": 1,
-        "mau": 543214,       # 주간 활성 유저
-        "cac": 150000,        # 고객 획득 비용 (원)
-        "arpu": 45000,       # 전체 평균 객단가 (원)
-        "churn_rate": 0.08,  # 전체 이탈률 8%
-        "gross_margin": 0.35 # 매출 총이익률 65%
+        "new_signups": 1512,    # [Acquisition] 주간 신규 가입자 수
+        "mau": 543214,           # [Activation] 주간 활성 유저
+        "churn_rate": 0.08,     # [Retention] 전체 이탈률
+        "referral_rate": 0.025, # [Referral] 고객 추천율
+        "arpu": 150000,          # 전체 평균 객단가 (LTV 산출용)
+        "gross_margin": 0.65,   # 매출 총이익률 65% (LTV 산출용)
+        "cac": 150000            # (참고용) 고객 획득 비용
     }]
 
 with st.sidebar:
@@ -113,24 +115,26 @@ if not filtered_df.empty:
     
     st.divider()
     st.subheader("📈 전체 고객 그로스 지표")
-    
+    # 현재 주차 및 전 주차의 거시 지표 가져오기
     curr_macro = next((m for m in st.session_state.macro_metrics_history if m["week"] == st.session_state.current_sim_week), st.session_state.macro_metrics_history[-1])
     prev_macro = next((m for m in st.session_state.macro_metrics_history if m["week"] == st.session_state.current_sim_week - 1), curr_macro)
 
+    # Global LTV 산출 (ARPU / Churn Rate * Gross Margin)
     def calc_global_ltv(macro_data):
         return (macro_data["arpu"] / max(macro_data["churn_rate"], 0.001)) * macro_data["gross_margin"]
 
     curr_global_ltv = calc_global_ltv(curr_macro)
     prev_global_ltv = calc_global_ltv(prev_macro)
 
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("주별 MAU", f"{curr_macro['mau']:,} 명", delta=f"{curr_macro['mau'] - prev_macro['mau']:,} 명")
-    m2.metric("전체 이탈률 (Churn)", f"{curr_macro['churn_rate']*100:.1f}%", delta=f"{(curr_macro['churn_rate'] - prev_macro['churn_rate'])*100:.1f}%", delta_color="inverse")
-    m3.metric("CAC", f"{curr_macro['cac']:,} 원", delta=f"{curr_macro['cac'] - prev_macro['cac']:,} 원", delta_color="inverse")
-    m4.metric("LTV", f"{curr_global_ltv:,.0f} 원", delta=f"{curr_global_ltv - prev_global_ltv:,.0f} 원")
-
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric("Acquisition\n(신규 가입자)", f"{curr_macro['new_signups']:,} 명", delta=f"{curr_macro['new_signups'] - prev_macro['new_signups']:,} 명")
+    m2.metric("Activation\n(MAU)", f"{curr_macro['mau']:,} 명", delta=f"{curr_macro['mau'] - prev_macro['mau']:,} 명")
+    m3.metric("Retention\n(이탈률)", f"{curr_macro['churn_rate']*100:.1f}%", delta=f"{(curr_macro['churn_rate'] - prev_macro['churn_rate'])*100:.1f}%", delta_color="inverse")
+    m4.metric("Referral\n(고객 추천율)", f"{curr_macro['referral_rate']*100:.1f}%", delta=f"{(curr_macro['referral_rate'] - prev_macro['referral_rate'])*100:.1f}%")
+    m5.metric("Revenue\n(LTV)", f"{curr_global_ltv:,.0f} 원", delta=f"{curr_global_ltv - prev_global_ltv:,.0f} 원")
+    
     st.divider()
-    st.subheader("🗣️ [VOC] 인입 고객 대상 서비스 지표 (Benchmark 비교)")
+    st.subheader("🗣️ [VOC] 인입 고객 대상 서비스 지표")
     
     def calc_voc_metrics(data_df):
         if data_df.empty: return {"frt": None, "fcr": None, "csat": None, "nps": None}
@@ -231,18 +235,24 @@ if st.button("🚀 3. 전략 실행 및 차주 데이터 생성"):
                 new_voc_csat = (len(new_df[new_df['csat_score'] >= 4]) / len(new_df)) * 100 if not new_df.empty else 50
                 impact_factor = (new_voc_csat - 50) / 100 
                 
+                new_signups = int(last_macro["new_signups"] * (1 + (0.05 * impact_factor))) # 오가닉 신규 유입 증감
+                new_churn = max(0.005, last_macro["churn_rate"] - (0.03 * impact_factor))   # 만족도에 따른 이탈률 하락
+                new_referral = min(0.15, last_macro["referral_rate"] + (0.015 * impact_factor)) # 바이럴에 의한 추천율 상승
+                
+                new_mau = int((last_macro["mau"] * (1 - new_churn)) + new_signups + (last_macro["mau"] * new_referral))
                 
                 new_macro = {
                     "week": st.session_state.current_sim_week + 1,
-                    "mau": int(last_macro["mau"] * (1 + (0.05 * impact_factor))), 
+                    "new_signups": new_signups,
+                    "mau": new_mau, 
                     "cac": max(5000, int(last_macro["cac"] * (1 - (0.08 * impact_factor)))), 
-                    "arpu": last_macro["arpu"], # 객단가는 단기 액션으로 쉽게 변하지 않음으로 고정
-                    "churn_rate": max(0.005, last_macro["churn_rate"] - (0.02 * impact_factor)), 
+                    "arpu": last_macro["arpu"], 
+                    "churn_rate": new_churn, 
+                    "referral_rate": new_referral,
                     "gross_margin": last_macro["gross_margin"]
                 }
                 st.session_state.macro_metrics_history.append(new_macro)
                 
-
                 st.session_state.feedback_history.append({
                     "week": st.session_state.current_sim_week,
                     "analysis": user_analysis,
