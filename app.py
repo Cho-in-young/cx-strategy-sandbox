@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import io
 from modules.ai_evaluator import get_ai_feedback, generate_next_week_data, generate_next_background
+import time
 
 st.set_page_config(page_title="CX Strategy Sandbox", layout="wide")
 
@@ -27,6 +28,17 @@ if 'current_background' not in st.session_state:
     st.session_state.current_background = "현재 유입 트래픽은 꾸준히 증가하고 있으나, 유료 결제 전환율(F2P)은 2% 미만으로 정체되어 있습니다."
 if 'next_background' not in st.session_state:
     st.session_state.next_background = None
+
+if 'macro_metrics_history' not in st.session_state:
+    # 1주차 가상 전체 고객 베이스라인 데이터
+    st.session_state.macro_metrics_history = [{
+        "week": 1,
+        "mau": 25000,        # 월간/주간 활성 유저
+        "cac": 15000,        # 고객 획득 비용 (원)
+        "arpu": 45000,       # 전체 평균 객단가 (원)
+        "churn_rate": 0.08,  # 전체 이탈률 8%
+        "gross_margin": 0.65 # 매출 총이익률 65%
+    }]
 
 with st.sidebar:
     st.title("📚 CX 지표 사전")
@@ -100,59 +112,48 @@ if not filtered_df.empty:
         st.dataframe(filtered_df, use_container_width=True)
     
     st.divider()
-    st.subheader("📊 핵심 KPI (전주 대비 증감)")
-    kpis = ["FRT (분)", "FCR (%)", "CSAT (Top-2 %)", "NPS Score", "LTV (평균)", "Churn (%)"]
-    selected = st.multiselect("분석 지표 선택", kpis, default=["CSAT (Top-2 %)", "NPS Score", "Churn (%)"])
+    st.subheader("📈 [Global] 전체 고객 그로스 지표")
     
-    prev_df = df[df['week'] == (st.session_state.current_sim_week - 1)] if st.session_state.current_sim_week > 1 else pd.DataFrame()
-    if banner != "Total" and not prev_df.empty:
-        prev_df = prev_df[prev_df[banner] == filtered_df[banner].iloc[0]]
+    # 현재 주차 및 전 주차의 거시 지표 가져오기
+    curr_macro = next((m for m in st.session_state.macro_metrics_history if m["week"] == st.session_state.current_sim_week), st.session_state.macro_metrics_history[-1])
+    prev_macro = next((m for m in st.session_state.macro_metrics_history if m["week"] == st.session_state.current_sim_week - 1), curr_macro)
 
-    def calc_metrics(data_df):
-        if data_df.empty: return {"frt": None, "fcr": None, "csat": None, "nps": None, "ltv": None, "churn": None}
+    # Global LTV 산출 (ARPU / Churn Rate * Gross Margin)
+    def calc_global_ltv(macro_data):
+        return (macro_data["arpu"] / max(macro_data["churn_rate"], 0.001)) * macro_data["gross_margin"]
+
+    curr_global_ltv = calc_global_ltv(curr_macro)
+    prev_global_ltv = calc_global_ltv(prev_macro)
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("가상 MAU", f"{curr_macro['mau']:,} 명", delta=f"{curr_macro['mau'] - prev_macro['mau']:,} 명")
+    m2.metric("전체 이탈률 (Churn)", f"{curr_macro['churn_rate']*100:.1f}%", delta=f"{(curr_macro['churn_rate'] - prev_macro['churn_rate'])*100:.1f}%", delta_color="inverse")
+    m3.metric("CAC (고객 획득 비용)", f"{curr_macro['cac']:,} 원", delta=f"{curr_macro['cac'] - prev_macro['cac']:,} 원", delta_color="inverse")
+    m4.metric("Global LTV", f"{curr_global_ltv:,.0f} 원", delta=f"{curr_global_ltv - prev_global_ltv:,.0f} 원")
+
+    st.divider()
+    st.subheader("🗣️ [VOC] 인입 고객 대상 서비스 지표 (Benchmark 비교)")
+    
+    def calc_voc_metrics(data_df):
+        if data_df.empty: return {"frt": None, "fcr": None, "csat": None, "nps": None}
         dt_resp = pd.to_datetime(data_df['first_response_at'], format='mixed', errors='coerce')
         dt_crea = pd.to_datetime(data_df['created_at'], format='mixed', errors='coerce')
         frt = (dt_resp - dt_crea).dt.total_seconds().mean() / 60
         fcr = (data_df['is_fcr'].astype(bool).sum() / len(data_df)) * 100
         csat = (len(data_df[data_df['csat_score'] >= 4]) / len(data_df)) * 100
         nps = ((len(data_df[data_df['nps_score'] >= 9]) - len(data_df[data_df['nps_score'] <= 6])) / len(data_df)) * 100
-        ltv = data_df['total_purchase_amount'].mean()
-        churn = (data_df['is_active'].astype(str).str.upper() == 'FALSE').sum() / len(data_df) * 100
-        return {"frt": frt, "fcr": fcr, "csat": csat, "nps": nps, "ltv": ltv, "churn": churn}
+        return {"frt": frt, "fcr": fcr, "csat": csat, "nps": nps}
 
-    curr_metrics = calc_metrics(filtered_df)
-    prev_metrics = calc_metrics(prev_df)
+    curr_voc = calc_voc_metrics(filtered_df)
+    prev_df = df[df['week'] == (st.session_state.current_sim_week - 1)] if st.session_state.current_sim_week > 1 else pd.DataFrame()
+    prev_voc = calc_voc_metrics(prev_df)
 
-    if selected:
-        cols = st.columns(len(selected))
-        for idx, m in enumerate(selected):
-            with cols[idx]:
-                if "FRT" in m:
-                    val = curr_metrics["frt"]
-                    if pd.isna(val): st.metric("평균 FRT", "오류")
-                    else:
-                        delta = f"{val - prev_metrics['frt']:.1f} 분" if prev_metrics['frt'] is not None else None
-                        st.metric("평균 FRT", f"{val:.1f} 분", delta=delta, delta_color="inverse")
-                elif "FCR" in m:
-                    val = curr_metrics["fcr"]
-                    delta = f"{val - prev_metrics['fcr']:.1f}%" if prev_metrics['fcr'] is not None else None
-                    st.metric("FCR", f"{val:.1f}%", delta=delta)
-                elif "CSAT" in m:
-                    val = curr_metrics["csat"]
-                    delta = f"{val - prev_metrics['csat']:.1f}%" if prev_metrics['csat'] is not None else None
-                    st.metric("CSAT (Top-2)", f"{val:.1f}%", delta=delta)
-                elif "NPS" in m:
-                    val = curr_metrics["nps"]
-                    delta = f"{val - prev_metrics['nps']:.1f}" if prev_metrics['nps'] is not None else None
-                    st.metric("NPS", f"{val:.1f}", delta=delta)
-                elif "LTV" in m:
-                    val = curr_metrics["ltv"]
-                    delta = f"{val - prev_metrics['ltv']:,.0f}원" if prev_metrics['ltv'] is not None else None
-                    st.metric("평균 LTV", f"{val:,.0f}원", delta=delta)
-                elif "Churn" in m:
-                    val = curr_metrics["churn"]
-                    delta = f"{val - prev_metrics['churn']:.1f}%" if prev_metrics['churn'] is not None else None
-                    st.metric("Churn (이탈률)", f"{val:.1f}%", delta=delta, delta_color="inverse")
+    v1, v2, v3, v4 = st.columns(4)
+    v1.metric("VOC 평균 FRT", f"{curr_voc['frt']:.1f} 분" if curr_voc['frt'] else "N/A", delta=f"{curr_voc['frt'] - prev_voc['frt']:.1f} 분" if prev_voc.get('frt') else None, delta_color="inverse")
+    v2.metric("VOC FCR", f"{curr_voc['fcr']:.1f}%", delta=f"{curr_voc['fcr'] - prev_voc['fcr']:.1f}%" if prev_voc.get('fcr') else None)
+    v3.metric("VOC CSAT (Top-2)", f"{curr_voc['csat']:.1f}%", delta=f"{curr_voc['csat'] - prev_voc['csat']:.1f}%" if prev_voc.get('csat') else None)
+    v4.metric("VOC NPS", f"{curr_voc['nps']:.1f}", delta=f"{curr_voc['nps'] - prev_voc['nps']:.1f}" if prev_voc.get('nps') else None)
+
 
     if "누적 데이터" in view_mode and st.session_state.current_sim_week > 1 and selected:
         st.divider()
@@ -161,14 +162,24 @@ if not filtered_df.empty:
         start_week = max(1, st.session_state.current_sim_week - 4)
         trend_data = []
         for w in range(start_week, st.session_state.current_sim_week + 1):
+            # 1. VOC 데이터 추출
             w_df = filtered_df[filtered_df['week'] == w]
-            if not w_df.empty:
-                w_metrics = calc_metrics(w_df)
-                trend_data.append({
-                    'Week': f'W{w}', 'FRT': w_metrics['frt'], 'FCR': w_metrics['fcr'], 
-                    'CSAT': w_metrics['csat'], 'NPS': w_metrics['nps'], 
-                    'LTV': w_metrics['ltv'], 'Churn': w_metrics['churn']
-                })
+            voc_m = calc_voc_metrics(w_df) if not w_df.empty else {"frt": None, "fcr": None, "csat": None, "nps": None}
+            
+            # 2. 매크로 데이터 추출
+            mac_m = next((m for m in st.session_state.macro_metrics_history if m["week"] == w), None)
+            mac_ltv = calc_global_ltv(mac_m) if mac_m else None
+            mac_churn = mac_m["churn_rate"] * 100 if mac_m else None
+            
+            trend_data.append({
+                'Week': f'W{w}', 
+                'FRT': voc_m.get('frt'), 
+                'FCR': voc_m.get('fcr'), 
+                'CSAT': voc_m.get('csat'), 
+                'NPS': voc_m.get('nps'), 
+                'LTV': mac_ltv, 
+                'Churn': mac_churn
+            })
         
         trend_df = pd.DataFrame(trend_data)
         chart_cols = st.columns(2)
@@ -216,7 +227,24 @@ if st.button("🚀 3. 전략 실행 및 차주 데이터 생성"):
             try:
                 new_df = pd.read_csv(io.StringIO(generated_csv.strip()))
                 st.session_state.master_df = pd.concat([st.session_state.master_df, new_df], ignore_index=True)
+               
+                last_macro = st.session_state.macro_metrics_history[-1]
+                # 새로 생성된 VOC의 CSAT을 바탕으로 액션의 성공 여부 측정 (기준점 50%)
+                new_voc_csat = (len(new_df[new_df['csat_score'] >= 4]) / len(new_df)) * 100 if not new_df.empty else 50
+                impact_factor = (new_voc_csat - 50) / 100 
                 
+                # 액션 성과에 비례하여 MAU 증가, Churn 감소, CAC 변동 (상관관계 하드코딩)
+                new_macro = {
+                    "week": st.session_state.current_sim_week + 1,
+                    "mau": int(last_macro["mau"] * (1 + (0.05 * impact_factor))), 
+                    "cac": max(5000, int(last_macro["cac"] * (1 - (0.08 * impact_factor)))), 
+                    "arpu": last_macro["arpu"], # 객단가는 단기 액션으로 쉽게 변하지 않음으로 고정
+                    "churn_rate": max(0.005, last_macro["churn_rate"] - (0.02 * impact_factor)), 
+                    "gross_margin": last_macro["gross_margin"]
+                }
+                st.session_state.macro_metrics_history.append(new_macro)
+                
+
                 st.session_state.feedback_history.append({
                     "week": st.session_state.current_sim_week,
                     "analysis": user_analysis,
