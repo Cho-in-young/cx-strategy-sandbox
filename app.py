@@ -37,7 +37,7 @@ if 'macro_metrics_history' not in st.session_state:
         "mau": 543214,           # [Activation] 주간 활성 유저
         "churn_rate": 0.08,     # [Retention] 전체 이탈률
         "referral_rate": 0.025, # [Referral] 고객 추천율
-        "arpu": 21000,          # 전체 평균 객단가 (LTV 산출용)
+        "arpu": 33000,          # 전체 평균 객단가 (LTV 산출용)
         "gross_margin": 0.35,   # 매출 총이익률 65% (LTV 산출용)
         "cac": 150000            # (참고용) 고객 획득 비용
     }]
@@ -132,6 +132,7 @@ if not filtered_df.empty:
     m3.metric("Retention\n(이탈률)", f"{curr_macro['churn_rate']*100:.1f}%", delta=f"{(curr_macro['churn_rate'] - prev_macro['churn_rate'])*100:.1f}%", delta_color="inverse")
     m4.metric("Referral\n(고객 추천율)", f"{curr_macro['referral_rate']*100:.1f}%", delta=f"{(curr_macro['referral_rate'] - prev_macro['referral_rate'])*100:.1f}%")
     m5.metric("Revenue\n(LTV)", f"{curr_global_ltv:,.0f} 원", delta=f"{curr_global_ltv - prev_global_ltv:,.0f} 원")
+    m6.metric("Cost\n(CAC)", f"{curr_macro['cac']:,} 원", delta=f"{curr_macro['cac'] - prev_macro['cac']:,} 원", delta_color="inverse")
     
     st.divider()
     st.subheader("🗣️ [VOC] 인입 고객 대상 서비스 지표")
