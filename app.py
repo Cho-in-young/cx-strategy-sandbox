@@ -37,8 +37,8 @@ if 'macro_metrics_history' not in st.session_state:
         "mau": 543214,           # [Activation] 주간 활성 유저
         "churn_rate": 0.08,     # [Retention] 전체 이탈률
         "referral_rate": 0.025, # [Referral] 고객 추천율
-        "arpu": 150000,          # 전체 평균 객단가 (LTV 산출용)
-        "gross_margin": 0.65,   # 매출 총이익률 65% (LTV 산출용)
+        "arpu": 21000,          # 전체 평균 객단가 (LTV 산출용)
+        "gross_margin": 0.35,   # 매출 총이익률 65% (LTV 산출용)
         "cac": 150000            # (참고용) 고객 획득 비용
     }]
 
