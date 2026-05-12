@@ -25,7 +25,7 @@ if 'current_sim_week' not in st.session_state: st.session_state.current_sim_week
 if 'feedback_history' not in st.session_state: st.session_state.feedback_history = []
 if 'current_feedback' not in st.session_state: st.session_state.current_feedback = None
 if 'current_background' not in st.session_state:
-    st.session_state.current_background = "현재 유입 트래픽은 꾸준히 증가하고 있으나, 유료 결제 전환율(F2P)은 2% 미만으로 정체되어 있습니다."
+    st.session_state.current_background = "어플리케이션의 마이너 업데이트가 수행되었습니다. 요약 및 TTS 기능이 소폭 개선되었습니다."
 if 'next_background' not in st.session_state:
     st.session_state.next_background = None
 
@@ -33,11 +33,11 @@ if 'macro_metrics_history' not in st.session_state:
     # 1주차 가상 전체 고객 베이스라인 데이터
     st.session_state.macro_metrics_history = [{
         "week": 1,
-        "mau": 25000,        # 월간/주간 활성 유저
-        "cac": 15000,        # 고객 획득 비용 (원)
+        "mau": 543214,       # 주간 활성 유저
+        "cac": 150000,        # 고객 획득 비용 (원)
         "arpu": 45000,       # 전체 평균 객단가 (원)
         "churn_rate": 0.08,  # 전체 이탈률 8%
-        "gross_margin": 0.65 # 매출 총이익률 65%
+        "gross_margin": 0.35 # 매출 총이익률 65%
     }]
 
 with st.sidebar:
@@ -46,7 +46,7 @@ with st.sidebar:
     with st.expander("✅ FCR (First Contact Resolution)"): st.write("첫 상담에서 즉시 해결된 비율. 유저 피로도를 방어합니다.")
     with st.expander("😊 CSAT (Top-2 % 기준)"): st.write("4, 5점 긍정 응답 비율. 단기적 서비스 만족도 표준입니다.")
     with st.expander("📣 NPS (Net Promoter Score)"): st.write("추천자(9-10) % - 비추천자(0-6) %. 브랜드 충성도 지표입니다.")
-    with st.expander("💎 LTV (Lifetime Value)"): st.write("유저별 평균 매출액 / 이탈율 * 그로스 마진. 고객의 비즈니스적 가치를 나타냅니다.")
+    with st.expander("💎 LTV (Lifetime Value)"): st.write("유저별 평균 매출액 / 이탈률 * 그로스 마진. 고객의 비즈니스적 가치를 나타냅니다.")
     with st.expander("🏃 Churn (이탈률)"): st.write("활성 상태(is_active)가 FALSE인 고객의 비율. 서비스 이탈 및 구독 해지를 나타냅니다.")
 
     st.divider()
