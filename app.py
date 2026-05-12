@@ -158,54 +158,73 @@ if not filtered_df.empty:
     v4.metric("VOC NPS", f"{curr_voc['nps']:.1f}", delta=f"{curr_voc['nps'] - prev_voc['nps']:.1f}" if prev_voc.get('nps') else None)
 
 
-    if "누적 데이터" in view_mode and st.session_state.current_sim_week > 1 and selected:
+    if "누적 데이터" in view_mode and st.session_state.current_sim_week > 1:
         st.divider()
-        st.subheader("📈 선택 지표별 주간 트렌드 (최대 5주)")
+        st.subheader("📈 주간 그로스 및 서비스 트렌드 (최대 5주)")
         
-        start_week = max(1, st.session_state.current_sim_week - 4)
-        trend_data = []
-        for w in range(start_week, st.session_state.current_sim_week + 1):
-            # 1. VOC 데이터 추출
-            w_df = filtered_df[filtered_df['week'] == w]
-            voc_m = calc_voc_metrics(w_df) if not w_df.empty else {"frt": None, "fcr": None, "csat": None, "nps": None}
-            
-            # 2. 매크로 데이터 추출
-            mac_m = next((m for m in st.session_state.macro_metrics_history if m["week"] == w), None)
-            mac_ltv = calc_global_ltv(mac_m) if mac_m else None
-            mac_churn = mac_m["churn_rate"] * 100 if mac_m else None
-            
-            trend_data.append({
-                'Week': f'W{w}', 
-                'FRT': voc_m.get('frt'), 
-                'FCR': voc_m.get('fcr'), 
-                'CSAT': voc_m.get('csat'), 
-                'NPS': voc_m.get('nps'), 
-                'LTV': mac_ltv, 
-                'Churn': mac_churn
-            })
+       
+        chart_options = [
+            "Acquisition (신규 가입자)", "Activation (MAU)", "Retention (이탈률 %)", 
+            "Referral (추천율 %)", "Revenue (LTV)", "Cost (CAC)", 
+            "FRT (평균 응답시간)", "CSAT (만족도 %)"
+        ]
+        selected_charts = st.multiselect(
+            "트렌드를 확인할 지표를 선택하세요 (최대 4개 권장)", 
+            chart_options, 
+            default=["Activation (MAU)", "Revenue (LTV)", "Retention (이탈률 %)", "CSAT (만족도 %)"]
+        )
         
-        trend_df = pd.DataFrame(trend_data)
-        chart_cols = st.columns(2)
-        for idx, m in enumerate(selected):
-            col = chart_cols[idx % 2]
-            with col:
-                if "FRT" in m:
-                    fig = px.area(trend_df, x='Week', y='FRT', title="평균 FRT 누적 추이 (분)", markers=True, color_discrete_sequence=['#FF7F0E'])
-                    st.plotly_chart(fig, use_container_width=True)
-                elif "FCR" in m:
-                    fig = px.line(trend_df, x='Week', y='FCR', title="FCR 달성률 트렌드 (%)", markers=True, color_discrete_sequence=['#1F77B4'])
-                    st.plotly_chart(fig, use_container_width=True)
-                elif "CSAT" in m:
-                    fig = px.line(trend_df, x='Week', y='CSAT', title="CSAT (Top-2) 변화 추이 (%)", markers=True, color_discrete_sequence=['#2CA02C'])
-                    st.plotly_chart(fig, use_container_width=True)
-                elif "NPS" in m:
-                    fig = px.bar(trend_df, x='Week', y='NPS', title="NPS Score 등락", color='NPS', color_continuous_scale=px.colors.diverging.RdYlGn)
-                    st.plotly_chart(fig, use_container_width=True)
-                elif "LTV" in m:
-                    fig = px.bar(trend_df, x='Week', y='LTV', title="평균 LTV 볼륨 (원)", color_discrete_sequence=['#9467BD'])
-                    st.plotly_chart(fig, use_container_width=True)
-                elif "Churn" in m:
-                    fig = px.line(trend_df, x='Week', y='Churn', title="Churn (이탈률) 트렌드 (%)", markers=True, color_discrete_sequence=['#D62728'])
+        if selected_charts:
+            start_week = max(1, st.session_state.current_sim_week - 4)
+            trend_data = []
+            
+            for w in range(start_week, st.session_state.current_sim_week + 1):
+               
+                w_df = filtered_df[filtered_df['week'] == w]
+                voc_m = calc_voc_metrics(w_df) if not w_df.empty else {"frt": None, "csat": None}
+                
+                
+                mac_m = next((m for m in st.session_state.macro_metrics_history if m["week"] == w), None)
+                
+                if mac_m:
+                    
+                    current_ltv = (mac_m["arpu"] / max(mac_m["churn_rate"], 0.001)) * mac_m["gross_margin"]
+                    
+                    trend_data.append({
+                        'Week': f'W{w}', 
+                        'Acquisition': mac_m["new_signups"],
+                        'Activation': mac_m["mau"],
+                        'Retention': mac_m["churn_rate"] * 100, 
+                        'Referral': mac_m["referral_rate"] * 100, 
+                        'Revenue': current_ltv,
+                        'Cost': mac_m["cac"],
+                        'FRT': voc_m.get('frt'), 
+                        'CSAT': voc_m.get('csat')
+                    })
+            
+            trend_df = pd.DataFrame(trend_data)
+            chart_cols = st.columns(2)
+            
+            for idx, m in enumerate(selected_charts):
+                col = chart_cols[idx % 2]
+                with col:
+                    if "Acquisition" in m:
+                        fig = px.bar(trend_df, x='Week', y='Acquisition', title="Acquisition: 신규 가입자 유입량", color_discrete_sequence=['#636EFA'])
+                    elif "Activation" in m:
+                        fig = px.area(trend_df, x='Week', y='Activation', title="Activation: 주간 MAU 성장 추이", markers=True, color_discrete_sequence=['#00CC96'])
+                    elif "Retention" in m:
+                        fig = px.line(trend_df, x='Week', y='Retention', title="Retention: 전체 이탈률 트렌드 (%)", markers=True, color_discrete_sequence=['#EF553B'])
+                    elif "Referral" in m:
+                        fig = px.line(trend_df, x='Week', y='Referral', title="Referral: 고객 추천율 변화 (%)", markers=True, color_discrete_sequence=['#AB63FA'])
+                    elif "Revenue" in m:
+                        fig = px.bar(trend_df, x='Week', y='Revenue', title="Revenue: LTV 추이 (원)", color_discrete_sequence=['#FFA15A'])
+                    elif "Cost" in m:
+                        fig = px.line(trend_df, x='Week', y='Cost', title="Cost: 고객 획득 비용 (CAC) 변동", markers=True, color_discrete_sequence=['#19D3F3'])
+                    elif "FRT" in m:
+                        fig = px.line(trend_df, x='Week', y='FRT', title="VOC: 평균 응답 시간 (분)", markers=True, color_discrete_sequence=['#FF6692'])
+                    elif "CSAT" in m:
+                        fig = px.line(trend_df, x='Week', y='CSAT', title="VOC: 고객 만족도 (Top-2, %)", markers=True, color_discrete_sequence=['#B6E880'])
+                    
                     st.plotly_chart(fig, use_container_width=True)
 
 else:
