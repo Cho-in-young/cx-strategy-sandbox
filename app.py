@@ -126,7 +126,7 @@ if not filtered_df.empty:
     curr_global_ltv = calc_global_ltv(curr_macro)
     prev_global_ltv = calc_global_ltv(prev_macro)
 
-    m1, m2, m3, m4, m5 = st.columns(5)
+    m1, m2, m3, m4, m5, m6 = st.columns(6)
     m1.metric("Acquisition\n(신규 가입자)", f"{curr_macro['new_signups']:,} 명", delta=f"{curr_macro['new_signups'] - prev_macro['new_signups']:,} 명")
     m2.metric("Activation\n(MAU)", f"{curr_macro['mau']:,} 명", delta=f"{curr_macro['mau'] - prev_macro['mau']:,} 명")
     m3.metric("Retention\n(이탈률)", f"{curr_macro['churn_rate']*100:.1f}%", delta=f"{(curr_macro['churn_rate'] - prev_macro['churn_rate'])*100:.1f}%", delta_color="inverse")
