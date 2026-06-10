@@ -231,7 +231,7 @@ else:
     st.warning("데이터가 없습니다.")
 
 st.divider()
-st.subheader("💡 CX 분석 및 액션 시뮬레이션 (1주차는 예시로 기입되어 있습니다.)")
+st.subheader("💡 CX 분석 및 액션 시뮬레이션 (1주차는 예시 기입)")
 
 if st.session_state.current_sim_week == 1:
     default_analysis = "현재 결제 단계 오류(무한 로딩, 카드 등록 실패) 및 환불 지연으로 인한 핵심 퍼널 이탈 현상이 두드러집니다. 이는 단순한 FRT/CSAT 하락을 넘어, 신규 가입자의 활성화(Activation)를 막고 기존 유저의 이탈률(Churn)을 높여 최종적으로 LTV를 크게 훼손할 수 있는 고위험 페인포인트입니다."
