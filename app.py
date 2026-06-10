@@ -13,7 +13,7 @@ TKT-2026-002,1,user_beta,Email,2026-04-29 10:15,2026-04-29 14:00,2026-04-29 15:3
 TKT-2026-003,1,user_gamma,Chat,2026-04-29 11:00,2026-04-29 11:02,2026-04-29 11:15,TRUE,기업용 플랜 도입 시 보안 가이드라인이 따로 있나요?,5,9,Enterprise,1200000,TRUE
 TKT-2026-004,1,user_alpha,Chat,2026-04-29 13:30,2026-04-29 13:40,2026-04-29 14:10,FALSE,아까 결제 오류 문의했던 유저입니다. 카드 등록 단계에서도 튕기네요.,1,2,Pro,540000,TRUE
 TKT-2026-005,1,user_delta,Call,2026-04-29 14:20,2026-04-29 14:21,2026-04-29 14:35,TRUE,로그인이 안 돼서 앱을 세 번이나 다시 깔았어요.,2,4,Pro,120000,TRUE
-TKT-2026-006,1,user_epsilon,Chat,2026-04-29 15:00,2026-04-29 15:05,2026-04-29 15:30,TRUE,분석 결과 텍스트 다운로드 버튼이 안 보여요.,3,6,Free,45000,TRUE
+TKT-2026-006,1,user_epsilon,Chat,2026-04-29 15:00,2026-04-29 15:05,2026-04-29 15:30,TRUE,분석 결과 다운로드 버튼이 안 보여요.,3,6,Free,45000,TRUE
 TKT-2026-007,1,user_zeta,Chat,2026-04-29 15:45,2026-04-29 15:47,2026-04-29 16:00,TRUE,업데이트 이후에 오탐률이 확실히 줄어든 게 느껴지네요. 만족합니다.,5,10,Enterprise,2500000,TRUE
 TKT-2026-008,1,user_eta,Email,2026-04-29 09:30,2026-04-29 11:50,2026-04-29 13:40,FALSE,구독 해지했는데 왜 또 결제가 된 거죠? 확인 부탁드려요.,1,0,Pro,350000,FALSE
 TKT-2026-009,1,user_theta,Chat,2026-04-29 16:30,2026-04-29 16:32,2026-04-29 16:45,TRUE,무료 체험 기간 남은 거 어디서 확인하나요?,4,8,Free,0,TRUE
@@ -25,7 +25,7 @@ if 'current_sim_week' not in st.session_state: st.session_state.current_sim_week
 if 'feedback_history' not in st.session_state: st.session_state.feedback_history = []
 if 'current_feedback' not in st.session_state: st.session_state.current_feedback = None
 if 'current_background' not in st.session_state:
-    st.session_state.current_background = "어플리케이션의 마이너 업데이트가 수행되었습니다. 요약 및 TTS 기능이 소폭 개선되었습니다."
+    st.session_state.current_background = "어플리케이션의 마이너 업데이트가 수행되었습니다. 요약 기능이 소폭 개선되었습니다."
 if 'next_background' not in st.session_state:
     st.session_state.next_background = None
 
@@ -91,7 +91,7 @@ df['week'] = pd.to_numeric(df['week'], errors='coerce').fillna(1).astype(int)
 st.title(f"🎯 CX Strategy Sandbox - [Week {st.session_state.current_sim_week}]")
 st.markdown("---")
 
-view_mode = st.radio("📊 데이터 조회 방식", ["현재 주차만 보기 (주간 액션 성과)", "전체 누적 데이터 보기 (장기 트렌드)"], horizontal=True)
+view_mode = st.radio("📊 데이터 조회 방식", ["현재 주차만 보기 (주간 액션 성과)", "전체 누적 데이터 보기 (장기 트렌드, 2주차부터 활성화)"], horizontal=True)
 
 if "현재 주차" in view_mode:
     base_df = df[df['week'] == st.session_state.current_sim_week]
@@ -232,11 +232,19 @@ else:
 
 st.divider()
 st.subheader("💡 CX 분석 및 액션 시뮬레이션")
-c1, c2 = st.columns(2)
-with c1: user_analysis = st.text_area("1. 데이터 분석", height=150)
-with c2: user_action = st.text_area("2. 실행 액션", height=150)
 
-if st.button("🚀 3. 전략 실행 및 차주 데이터 생성"):
+if st.session_state.current_sim_week == 1:
+    default_analysis = "현재 결제 단계 오류(무한 로딩, 카드 등록 실패) 및 환불 지연으로 인한 핵심 퍼널 이탈 현상이 두드러집니다. 이는 단순한 FRT/CSAT 하락을 넘어, 신규 가입자의 활성화(Activation)를 막고 기존 유저의 이탈률(Churn)을 높여 최종적으로 LTV를 크게 훼손할 수 있는 고위험 페인포인트입니다."
+    default_action = "1. [Product] 결제 모듈 무한 로딩 버그에 대한 긴급 핫픽스를 개발팀에 최우선 과제로 요청합니다.\n2. [Retention] 결제 오류를 겪은 고객(user_alpha 등)에게 개별 사과 이메일과 '1개월 Pro 무료 업그레이드' 보상을 지급하여 이탈을 방어합니다.\n3. [CS 운영] 결제/환불 관련 문의 인입 시 SLA를 최상위로 끌어올려 즉각 라우팅되도록 프로세스를 개편합니다."
+else:
+    default_analysis = ""
+    default_action = ""
+
+c1, c2 = st.columns(2)
+with c1: user_analysis = st.text_area("Step 1. 데이터 분석", value=default_analysis, height=150)
+with c2: user_action = st.text_area("Step 2. 실행 액션", value=default_action, height=150)
+
+if st.button("🚀 Step 3. 전략 실행 및 차주 데이터 생성"):
     if user_analysis and user_action:
         with st.spinner("AI가 20건의 시뮬레이션 데이터를 생성 중입니다... (약 15~20초)"):
             feedback = get_ai_feedback(user_analysis, f"Week {st.session_state.current_sim_week}", user_action, filtered_df.to_string())
@@ -287,7 +295,7 @@ if st.button("🚀 3. 전략 실행 및 차주 데이터 생성"):
 if st.session_state.current_feedback: st.info(st.session_state.current_feedback)
 
 st.divider()
-if st.button("⏭️ 4. 다음 주차(Next Week) 대시보드로 이동"):
+if st.button("⏭️ Step 4. 다음 주차(Next Week) 대시보드로 이동"):
     if st.session_state.next_background:
         st.session_state.current_background = st.session_state.next_background
         
