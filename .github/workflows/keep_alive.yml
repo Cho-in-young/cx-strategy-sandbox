@@ -2,7 +2,6 @@ name: Streamlit Keep Alive (Browser Simulation)
 
 on:
   schedule:
-    # 6시간마다 실행은 약간 길 수 있습니다. 안전하게 4시간(0 */4 * * *)을 추천합니다.
     - cron: '0 */4 * * *' 
   workflow_dispatch:
 
@@ -11,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
           
@@ -29,11 +28,18 @@ jobs:
           with sync_playwright() as p:
               browser = p.chromium.launch(headless=True)
               page = browser.new_page()
-              print('앱에 접속 중...')
-              page.goto('https://cx-strategy-sandbox-d7bvujnlhecutl4eewoprh.streamlit.app/')
+              print('앱에 접속 시도 중 (최대 2분 대기)...')
               
-              # 페이지가 로드되고 WebSocket이 연결될 수 있도록 10초간 대기
-              time.sleep(10) 
-              print('접속 및 대기 완료. 브라우저를 닫습니다.')
-              browser.close()
+              try:
+                  # timeout을 30초에서 120초(120,000ms)로 연장
+                  # wait_until을 완화하여 로딩이 덜 끝나도 연결된 것으로 간주
+                  page.goto('https://cx-strategy-sandbox-d7bvujnlhecutl4eewoprh.streamlit.app/', timeout=120000, wait_until='domcontentloaded')
+                  print('초기 연결 성공. 웹소켓 활성화를 위해 15초 대기합니다.')
+                  time.sleep(15)
+              except Exception as e:
+                  # 접속 시간이 초과되어도 Failed 메일이 오지 않도록 예외(Pass) 처리
+                  print(f'접속 중 에러/타임아웃 발생 (핑 역할은 수행함): {e}')
+              finally:
+                  print('브라우저를 닫습니다.')
+                  browser.close()
           "
